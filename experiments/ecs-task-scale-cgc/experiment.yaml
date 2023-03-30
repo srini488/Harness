@@ -1,0 +1,281 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  creationTimestamp: null
+  labels:
+    infra_id: 9b6d3d4a-d26b-4000-b890-832ad360bef3
+    revision_id: 810666bf-cbc9-42da-99c0-b010991478c4
+    subject: ecs-task-scale_litmus
+  name: ecs-task-scale-cgc
+  namespace: cgc
+spec:
+  arguments:
+    parameters:
+    - name: adminModeNamespace
+      value: cgc
+  entrypoint: ecs-task-scale
+  podGC:
+    strategy: OnWorkflowCompletion
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: argo-chaos
+  templates:
+  - inputs: {}
+    metadata: {}
+    name: ecs-task-scale
+    outputs: {}
+    steps:
+    - - arguments: {}
+        name: install-chaos-faults
+        template: install-chaos-faults
+    - - arguments: {}
+        name: ecs-task-scale-y7j
+        template: ecs-task-scale-y7j
+    - - arguments: {}
+        name: cleanup-chaos-resources
+        template: cleanup-chaos-resources
+  - container:
+      args:
+      - kubectl apply -f /tmp/ -n {{workflow.parameters.adminModeNamespace}} && sleep
+        30
+      command:
+      - sh
+      - -c
+      image: chaosnative/k8s:2.11.0
+      name: ""
+      resources: {}
+    inputs:
+      artifacts:
+      - name: ecs-task-scale-y7j
+        path: /tmp/ecs-task-scale-y7j.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            description:
+              message: |
+                Injects task stop chaos on the AWS ECS service/task.
+            kind: ChaosExperiment
+            metadata:
+              name: ecs-task-scale
+              labels:
+                name: ecs-task-scale
+                app.kubernetes.io/part-of: litmus
+                app.kubernetes.io/component: chaosexperiment
+                app.kubernetes.io/version: ci
+            spec:
+              definition:
+                scope: Namespaced
+                permissions:
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods
+                    verbs:
+                      - create
+                      - delete
+                      - get
+                      - list
+                      - patch
+                      - update
+                      - deletecollection
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - events
+                    verbs:
+                      - create
+                      - get
+                      - list
+                      - patch
+                      - update
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - configmaps
+                    verbs:
+                      - get
+                      - list
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/log
+                    verbs:
+                      - get
+                      - list
+                      - watch
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/exec
+                    verbs:
+                      - get
+                      - list
+                      - create
+                  - apiGroups:
+                      - apps
+                    resources:
+                      - deployments
+                      - statefulsets
+                      - replicasets
+                      - daemonsets
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - apps.openshift.io
+                    resources:
+                      - deploymentconfigs
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - replicationcontrollers
+                    verbs:
+                      - get
+                      - list
+                  - apiGroups:
+                      - argoproj.io
+                    resources:
+                      - rollouts
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - batch
+                    resources:
+                      - jobs
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - delete
+                      - deletecollection
+                  - apiGroups:
+                      - litmuschaos.io
+                    resources:
+                      - chaosengines
+                      - chaosexperiments
+                      - chaosresults
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - patch
+                      - update
+                      - delete
+                image: chaosnative/go-runner:3.0.1-saas
+                imagePullPolicy: Always
+                args:
+                  - -c
+                  - ./experiments -name ecs-task-scale
+                command:
+                  - /bin/bash
+                env:
+                  - name: TOTAL_CHAOS_DURATION
+                    value: "30"
+                  - name: RAMP_TIME
+                    value: ""
+                  - name: CLUSTER_NAME
+                    value: ""
+                  - name: SERVICE_NAMES
+                    value: ""
+                  - name: REGION
+                    value: ""
+                  - name: REPLICAS
+                    value: "5"
+                  - name: AWS_SHARED_CREDENTIALS_FILE
+                    value: /tmp/cloud_config.yml
+                labels:
+                  name: ecs-task-scale
+                  app.kubernetes.io/part-of: litmus
+                  app.kubernetes.io/component: experiment-job
+                  app.kubernetes.io/version: ci
+                secrets:
+                  - name: cloud-secret
+                    mountPath: /tmp/
+    metadata: {}
+    name: install-chaos-faults
+    outputs: {}
+  - container:
+      args:
+      - kubectl delete chaosengine -l workflow_run_id={{workflow.uid}} -n {{workflow.parameters.adminModeNamespace}}
+      command:
+      - sh
+      - -c
+      image: chaosnative/k8s:2.11.0
+      name: ""
+      resources: {}
+    inputs: {}
+    metadata: {}
+    name: cleanup-chaos-resources
+    outputs: {}
+  - container:
+      args:
+      - -file=/tmp/chaosengine-ecs-task-scale-y7j.yaml
+      - -saveName=/tmp/engine-name
+      image: chaosnative/litmus-checker:2.11.0
+      name: ""
+      resources: {}
+    inputs:
+      artifacts:
+      - name: ecs-task-scale-y7j
+        path: /tmp/chaosengine-ecs-task-scale-y7j.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            kind: ChaosEngine
+            metadata:
+              namespace: "{{workflow.parameters.adminModeNamespace}}"
+              generateName: ecs-task-scale-y7j
+              labels:
+                workflow_run_id: "{{ workflow.uid }}"
+                workflow_name: ecs-task-scale-cgc
+            spec:
+              engineState: active
+              chaosServiceAccount: litmus-admin
+              experiments:
+                - name: ecs-task-scale
+                  spec:
+                    components:
+                      env:
+                        - name: TOTAL_CHAOS_DURATION
+                          value: "30"
+                        - name: CLUSTER_NAME
+                          value: cgc-cluster
+                        - name: SERVICE_NAMES
+                          value: cgc-frontend
+                        - name: REPLICAS
+                          value: "2"
+                        - name: REGION
+                          value: us-east-1
+                        - name: SEQUENCE
+                          value: parallel
+                    probe:
+                      - name: healthcheck-pre-chaos
+                        type: cmdProbe
+                        mode: Edge
+                        runProperties:
+                          probeTimeout: 10
+                          retry: 0
+                          interval: 1
+                          stopOnFailure: true
+                        cmdProbe/inputs:
+                          command: ./healthcheck -name aws-ecs-task-scale
+                          source:
+                            image: chaosnative/go-runner:3.0.1-saas
+                            inheritInputs: true
+                          comparator:
+                            type: string
+                            criteria: contains
+                            value: "[P000]"
+    metadata:
+      labels:
+        weight: "10"
+    name: ecs-task-scale-y7j
+    outputs: {}
+status:
+  finishedAt: null
+  startedAt: null

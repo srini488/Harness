@@ -1,0 +1,26 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChartServiceVersion
+metadata:
+  annotations:
+    categories: ""
+    chartDescription: ""
+    createdAt: ""
+    repository: ""
+    support: ""
+    vendor: ""
+  name: ecs-task-scale-cgc
+packageInfo:
+  experiments: null
+  packageName: ""
+spec:
+  categoryDescription: ""
+  displayName: ecs-task-scale-cgc
+  experiments: null
+  faults:
+  - description: ""
+    displayName: ""
+    name: ecs-task-scale-y7j
+  keywords: []
+  provider:
+    name: ""
+  scenarios: null
