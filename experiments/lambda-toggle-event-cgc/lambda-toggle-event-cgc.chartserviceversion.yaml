@@ -1,0 +1,27 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChartServiceVersion
+metadata:
+  annotations:
+    categories: ""
+    chartDescription: ""
+    createdAt: ""
+    repository: ""
+    support: ""
+    vendor: ""
+  name: lambda-toggle-event-cgc
+packageInfo:
+  experiments: null
+  packageName: ""
+spec:
+  categoryDescription: Injects AWS toggle lambda event source mapping state chaos
+    for a specified chaos duration
+  displayName: lambda-toggle-event-cgc
+  experiments: null
+  faults:
+  - description: ""
+    displayName: ""
+    name: lambda-toggle-event-mapping-state-mgk
+  keywords: []
+  provider:
+    name: ""
+  scenarios: null
