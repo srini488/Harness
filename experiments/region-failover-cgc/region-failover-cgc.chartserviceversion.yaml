@@ -1,0 +1,38 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChartServiceVersion
+metadata:
+  annotations:
+    categories: ""
+    chartDescription: ""
+    createdAt: ""
+    repository: ""
+    support: ""
+    vendor: ""
+  name: region-failover-cgc
+packageInfo:
+  experiments: null
+  packageName: ""
+spec:
+  categoryDescription: ""
+  displayName: region-failover-cgc
+  experiments: null
+  faults:
+  - description: ""
+    displayName: ""
+    name: ec2-stop-by-id-eam
+  - description: ""
+    displayName: ""
+    name: alb-az-down-2i4
+  - description: ""
+    displayName: ""
+    name: lambda-update-function-memory-cq0
+  - description: ""
+    displayName: ""
+    name: rds-instance-reboot-tk9
+  - description: ""
+    displayName: ""
+    name: ecs-task-stop-781
+  keywords: []
+  provider:
+    name: ""
+  scenarios: null
