@@ -1,0 +1,26 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChartServiceVersion
+metadata:
+  annotations:
+    categories: ""
+    chartDescription: ""
+    createdAt: ""
+    repository: ""
+    support: ""
+    vendor: ""
+  name: ec2-stop-instance
+packageInfo:
+  experiments: null
+  packageName: ""
+spec:
+  categoryDescription: ""
+  displayName: ec2-stop-instance
+  experiments: null
+  faults:
+  - description: ""
+    displayName: ""
+    name: ec2-stop-by-id-bsc
+  keywords: []
+  provider:
+    name: ""
+  scenarios: null
