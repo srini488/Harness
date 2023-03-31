@@ -1,0 +1,27 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChartServiceVersion
+metadata:
+  annotations:
+    categories: ""
+    chartDescription: ""
+    createdAt: ""
+    repository: ""
+    support: ""
+    vendor: ""
+  name: ecs-task-stop-hce
+packageInfo:
+  experiments: null
+  packageName: ""
+spec:
+  categoryDescription: Injects task stop chaos on a target ECS service/task for a
+    specified duration
+  displayName: ecs-task-stop-hce
+  experiments: null
+  faults:
+  - description: ""
+    displayName: ""
+    name: ecs-task-stop-y7j
+  keywords: []
+  provider:
+    name: ""
+  scenarios: null
