@@ -1,0 +1,35 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChartServiceVersion
+metadata:
+  annotations:
+    categories: ""
+    chartDescription: ""
+    createdAt: ""
+    repository: ""
+    support: ""
+    vendor: ""
+  name: regiona-failover
+packageInfo:
+  experiments: null
+  packageName: ""
+spec:
+  categoryDescription: ""
+  displayName: regiona-failover
+  experiments: null
+  faults:
+  - description: ""
+    displayName: ""
+    name: ec2-stop-by-id-uis
+  - description: ""
+    displayName: ""
+    name: alb-az-down-1ny
+  - description: ""
+    displayName: ""
+    name: rds-instance-reboot-c2d
+  - description: ""
+    displayName: ""
+    name: lambda-update-function-memory-p6e
+  keywords: []
+  provider:
+    name: ""
+  scenarios: null

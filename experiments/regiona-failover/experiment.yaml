@@ -1,0 +1,937 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  creationTimestamp: null
+  labels:
+    infra_id: 9b6d3d4a-d26b-4000-b890-832ad360bef3
+    revision_id: 8a720c1d-f83c-4c43-ad2c-ba56b4fccda7
+  name: regiona-failover
+  namespace: cgc
+spec:
+  arguments:
+    parameters:
+    - name: adminModeNamespace
+      value: cgc
+  entrypoint: regiona-failover
+  podGC:
+    strategy: OnWorkflowCompletion
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: argo-chaos
+  templates:
+  - inputs: {}
+    metadata: {}
+    name: regiona-failover
+    outputs: {}
+    steps:
+    - - arguments: {}
+        name: install-chaos-faults
+        template: install-chaos-faults
+    - - arguments: {}
+        name: ec2-stop-by-id-uis
+        template: ec2-stop-by-id-uis
+      - arguments: {}
+        name: alb-az-down-1ny
+        template: alb-az-down-1ny
+      - arguments: {}
+        name: rds-instance-reboot-c2d
+        template: rds-instance-reboot-c2d
+      - arguments: {}
+        name: lambda-update-function-memory-p6e
+        template: lambda-update-function-memory-p6e
+    - - arguments: {}
+        name: cleanup-chaos-resources
+        template: cleanup-chaos-resources
+  - container:
+      args:
+      - kubectl apply -f /tmp/ -n {{workflow.parameters.adminModeNamespace}} && sleep
+        30
+      command:
+      - sh
+      - -c
+      image: chaosnative/k8s:2.11.0
+      name: ""
+      resources: {}
+    inputs:
+      artifacts:
+      - name: ec2-stop-by-id-uis
+        path: /tmp/ec2-stop-by-id-uis.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            description:
+              message: |
+                Stopping an EC2 instance identified by ID.
+            kind: ChaosExperiment
+            metadata:
+              name: ec2-stop-by-id
+              labels:
+                name: ec2-stop-by-id
+                app.kubernetes.io/part-of: litmus
+                app.kubernetes.io/component: chaosexperiment
+                app.kubernetes.io/version: ci
+            spec:
+              definition:
+                scope: Cluster
+                permissions:
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods
+                    verbs:
+                      - create
+                      - delete
+                      - get
+                      - list
+                      - patch
+                      - update
+                      - deletecollection
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - events
+                    verbs:
+                      - create
+                      - get
+                      - list
+                      - patch
+                      - update
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - secrets
+                      - configmaps
+                    verbs:
+                      - get
+                      - list
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/log
+                    verbs:
+                      - get
+                      - list
+                      - watch
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/exec
+                    verbs:
+                      - get
+                      - list
+                      - create
+                  - apiGroups:
+                      - batch
+                    resources:
+                      - jobs
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - delete
+                      - deletecollection
+                  - apiGroups:
+                      - litmuschaos.io
+                    resources:
+                      - chaosengines
+                      - chaosexperiments
+                      - chaosresults
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - patch
+                      - update
+                      - delete
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - nodes
+                    verbs:
+                      - get
+                      - list
+                image: chaosnative/go-runner:3.0.1-saas
+                imagePullPolicy: Always
+                args:
+                  - -c
+                  - ./experiments -name ec2-stop-by-id
+                command:
+                  - /bin/bash
+                env:
+                  - name: TOTAL_CHAOS_DURATION
+                    value: "30"
+                  - name: CHAOS_INTERVAL
+                    value: "30"
+                  - name: RAMP_TIME
+                    value: ""
+                  - name: DEFAULT_HEALTH_CHECK
+                    value: "false"
+                  - name: MANAGED_NODEGROUP
+                    value: disable
+                  - name: EC2_INSTANCE_ID
+                    value: ""
+                  - name: REGION
+                    value: ""
+                  - name: SEQUENCE
+                    value: parallel
+                  - name: AWS_SHARED_CREDENTIALS_FILE
+                    value: /tmp/cloud_config.yml
+                labels:
+                  name: ec2-stop-by-id
+                  app.kubernetes.io/part-of: litmus
+                  app.kubernetes.io/component: experiment-job
+                  app.kubernetes.io/version: ci
+                secrets:
+                  - name: cloud-secret
+                    mountPath: /tmp/
+      - name: alb-az-down-1ny
+        path: /tmp/alb-az-down-1ny.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            description:
+              message: |
+                It injects AZ down chaos on alb for a certain chaos duration.
+            kind: ChaosExperiment
+            metadata:
+              name: alb-az-down
+              labels:
+                name: alb-az-down
+                app.kubernetes.io/part-of: litmus
+                app.kubernetes.io/component: chaosexperiment
+                app.kubernetes.io/version: ci
+            spec:
+              definition:
+                scope: Namespaced
+                permissions:
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods
+                    verbs:
+                      - create
+                      - delete
+                      - get
+                      - list
+                      - patch
+                      - update
+                      - deletecollection
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - events
+                    verbs:
+                      - create
+                      - get
+                      - list
+                      - patch
+                      - update
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - configmaps
+                    verbs:
+                      - get
+                      - list
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/log
+                    verbs:
+                      - get
+                      - list
+                      - watch
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/exec
+                    verbs:
+                      - get
+                      - list
+                      - create
+                  - apiGroups:
+                      - apps
+                    resources:
+                      - deployments
+                      - statefulsets
+                      - replicasets
+                      - daemonsets
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - apps.openshift.io
+                    resources:
+                      - deploymentconfigs
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - replicationcontrollers
+                    verbs:
+                      - get
+                      - list
+                  - apiGroups:
+                      - argoproj.io
+                    resources:
+                      - rollouts
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - batch
+                    resources:
+                      - jobs
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - delete
+                      - deletecollection
+                  - apiGroups:
+                      - litmuschaos.io
+                    resources:
+                      - chaosengines
+                      - chaosexperiments
+                      - chaosresults
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - patch
+                      - update
+                      - delete
+                image: chaosnative/go-runner:3.0.1-saas
+                imagePullPolicy: Always
+                args:
+                  - -c
+                  - ./experiments -name alb-az-down
+                command:
+                  - /bin/bash
+                env:
+                  - name: TOTAL_CHAOS_DURATION
+                    value: "30"
+                  - name: RAMP_TIME
+                    value: ""
+                  - name: CHAOS_INTERVAL
+                    value: "30"
+                  - name: LOAD_BALANCER_ARN
+                    value: ""
+                  - name: ZONES
+                    value: ""
+                  - name: REGION
+                    value: ""
+                  - name: DEFAULT_HEALTH_CHECK
+                    value: "false"
+                  - name: AWS_SHARED_CREDENTIALS_FILE
+                    value: /tmp/cloud_config.yml
+                  - name: SEQUENCE
+                    value: parallel
+                labels:
+                  name: alb-az-down
+                  app.kubernetes.io/part-of: litmus
+                  app.kubernetes.io/component: experiment-job
+                  app.kubernetes.io/version: ci
+                secrets:
+                  - name: cloud-secret
+                    mountPath: /tmp/
+      - name: rds-instance-reboot-c2d
+        path: /tmp/rds-instance-reboot-c2d.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            description:
+              message: |
+                It injects rds-instance-reboot chaos on RDS cluster
+            kind: ChaosExperiment
+            metadata:
+              name: rds-instance-reboot
+              labels:
+                name: rds-instance-reboot
+                app.kubernetes.io/part-of: litmus
+                app.kubernetes.io/component: chaosexperiment
+                app.kubernetes.io/version: ci
+            spec:
+              definition:
+                scope: Namespaced
+                permissions:
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods
+                    verbs:
+                      - create
+                      - delete
+                      - get
+                      - list
+                      - patch
+                      - update
+                      - deletecollection
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - events
+                    verbs:
+                      - create
+                      - get
+                      - list
+                      - patch
+                      - update
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - configmaps
+                    verbs:
+                      - get
+                      - list
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/log
+                    verbs:
+                      - get
+                      - list
+                      - watch
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/exec
+                    verbs:
+                      - get
+                      - list
+                      - create
+                  - apiGroups:
+                      - apps
+                    resources:
+                      - deployments
+                      - statefulsets
+                      - replicasets
+                      - daemonsets
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - apps.openshift.io
+                    resources:
+                      - deploymentconfigs
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - replicationcontrollers
+                    verbs:
+                      - get
+                      - list
+                  - apiGroups:
+                      - argoproj.io
+                    resources:
+                      - rollouts
+                    verbs:
+                      - list
+                      - get
+                  - apiGroups:
+                      - batch
+                    resources:
+                      - jobs
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - delete
+                      - deletecollection
+                  - apiGroups:
+                      - litmuschaos.io
+                    resources:
+                      - chaosengines
+                      - chaosexperiments
+                      - chaosresults
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - patch
+                      - update
+                      - delete
+                image: chaosnative/go-runner:3.0.1-saas
+                imagePullPolicy: Always
+                args:
+                  - -c
+                  - ./experiments -name rds-instance-reboot
+                command:
+                  - /bin/bash
+                env:
+                  - name: TOTAL_CHAOS_DURATION
+                    value: "30"
+                  - name: RAMP_TIME
+                    value: ""
+                  - name: CHAOS_INTERVAL
+                    value: "10"
+                  - name: CLUSTER_NAME
+                    value: ""
+                  - name: RDS_INSTANCE_IDENTIFIER
+                    value: ""
+                  - name: REGION
+                    value: ""
+                  - name: FAILOVER
+                    value: "false"
+                  - name: INSTANCE_AFFECTED_PERC
+                    value: "100"
+                  - name: AWS_SHARED_CREDENTIALS_FILE
+                    value: /tmp/cloud_config.yml
+                  - name: DEFAULT_HEALTH_CHECK
+                    value: "false"
+                  - name: SEQUENCE
+                    value: parallel
+                labels:
+                  name: rds-instance-reboot
+                  app.kubernetes.io/part-of: litmus
+                  app.kubernetes.io/component: experiment-job
+                  app.kubernetes.io/version: ci
+                secrets:
+                  - name: cloud-secret
+                    mountPath: /tmp/
+      - name: lambda-update-function-memory-p6e
+        path: /tmp/lambda-update-function-memory-p6e.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            description:
+              message: |
+                Updating memory allocated to lambda function
+            kind: ChaosExperiment
+            metadata:
+              name: lambda-update-function-memory
+              labels:
+                name: lambda-update-function-memory
+                app.kubernetes.io/part-of: litmus
+                app.kubernetes.io/component: chaosexperiment
+                app.kubernetes.io/version: ci
+            spec:
+              definition:
+                scope: Cluster
+                permissions:
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods
+                    verbs:
+                      - create
+                      - delete
+                      - get
+                      - list
+                      - patch
+                      - update
+                      - deletecollection
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - events
+                    verbs:
+                      - create
+                      - get
+                      - list
+                      - patch
+                      - update
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - secrets
+                      - configmaps
+                    verbs:
+                      - get
+                      - list
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/log
+                    verbs:
+                      - get
+                      - list
+                      - watch
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - pods/exec
+                    verbs:
+                      - get
+                      - list
+                      - create
+                  - apiGroups:
+                      - batch
+                    resources:
+                      - jobs
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - delete
+                      - deletecollection
+                  - apiGroups:
+                      - litmuschaos.io
+                    resources:
+                      - chaosengines
+                      - chaosexperiments
+                      - chaosresults
+                    verbs:
+                      - create
+                      - list
+                      - get
+                      - patch
+                      - update
+                      - delete
+                  - apiGroups:
+                      - ""
+                    resources:
+                      - nodes
+                    verbs:
+                      - get
+                      - list
+                image: chaosnative/go-runner:3.0.1-saas
+                imagePullPolicy: Always
+                args:
+                  - -c
+                  - ./experiments -name lambda-update-function-memory
+                command:
+                  - /bin/bash
+                env:
+                  - name: TOTAL_CHAOS_DURATION
+                    value: "30"
+                  - name: CHAOS_INTERVAL
+                    value: "30"
+                  - name: RAMP_TIME
+                    value: ""
+                  - name: FUNCTION_NAME
+                    value: ""
+                  - name: REGION
+                    value: ""
+                  - name: MEMORY_IN_MEGABYTES
+                    value: ""
+                  - name: AWS_SHARED_CREDENTIALS_FILE
+                    value: /tmp/cloud_config.yml
+                  - name: SEQUENCE
+                    value: parallel
+                labels:
+                  name: lambda-update-function-memory
+                  app.kubernetes.io/part-of: litmus
+                  app.kubernetes.io/component: experiment-job
+                  app.kubernetes.io/version: ci
+                secrets:
+                  - name: cloud-secret
+                    mountPath: /tmp/
+    metadata: {}
+    name: install-chaos-faults
+    outputs: {}
+  - container:
+      args:
+      - kubectl delete chaosengine -l workflow_run_id={{workflow.uid}} -n {{workflow.parameters.adminModeNamespace}}
+      command:
+      - sh
+      - -c
+      image: chaosnative/k8s:2.11.0
+      name: ""
+      resources: {}
+    inputs: {}
+    metadata: {}
+    name: cleanup-chaos-resources
+    outputs: {}
+  - container:
+      args:
+      - -file=/tmp/chaosengine-ec2-stop-by-id-uis.yaml
+      - -saveName=/tmp/engine-name
+      image: chaosnative/litmus-checker:2.11.0
+      name: ""
+      resources: {}
+    inputs:
+      artifacts:
+      - name: ec2-stop-by-id-uis
+        path: /tmp/chaosengine-ec2-stop-by-id-uis.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            kind: ChaosEngine
+            metadata:
+              namespace: "{{workflow.parameters.adminModeNamespace}}"
+              generateName: ec2-stop-by-id-uis
+              labels:
+                workflow_run_id: "{{ workflow.uid }}"
+                workflow_name: regiona-failover
+            spec:
+              engineState: active
+              chaosServiceAccount: litmus-admin
+              experiments:
+                - name: ec2-stop-by-id
+                  spec:
+                    components:
+                      env:
+                        - name: TOTAL_CHAOS_DURATION
+                          value: "30"
+                        - name: CHAOS_INTERVAL
+                          value: "30"
+                        - name: EC2_INSTANCE_ID
+                          value: i-029dc45e62bcc42f0
+                        - name: REGION
+                          value: us-east-1
+                        - name: MANAGED_NODEGROUP
+                          value: disable
+                    probe:
+                      - name: pre-healthcheck
+                        type: cmdProbe
+                        mode: SOT
+                        runProperties:
+                          probeTimeout: 10
+                          retry: 0
+                          interval: 1
+                          stopOnFailure: true
+                        cmdProbe/inputs:
+                          command: ./healthcheck -name aws-ec2-pre-chaos
+                          source:
+                            image: chaosnative/go-runner:3.0.1-saas
+                            inheritInputs: true
+                          comparator:
+                            type: string
+                            criteria: contains
+                            value: "[P000]"
+                      - name: post-healthcheck
+                        type: cmdProbe
+                        mode: EOT
+                        runProperties:
+                          probeTimeout: 10
+                          retry: 0
+                          interval: 1
+                          stopOnFailure: true
+                        cmdProbe/inputs:
+                          command: ./healthcheck -name aws-ec2-post-chaos
+                          source:
+                            image: chaosnative/go-runner:3.0.1-saas
+                            inheritInputs: true
+                          comparator:
+                            type: string
+                            criteria: contains
+                            value: "[P000]"
+    metadata:
+      labels:
+        weight: "10"
+    name: ec2-stop-by-id-uis
+    outputs: {}
+  - container:
+      args:
+      - -file=/tmp/chaosengine-alb-az-down-1ny.yaml
+      - -saveName=/tmp/engine-name
+      image: chaosnative/litmus-checker:2.11.0
+      name: ""
+      resources: {}
+    inputs:
+      artifacts:
+      - name: alb-az-down-1ny
+        path: /tmp/chaosengine-alb-az-down-1ny.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            kind: ChaosEngine
+            metadata:
+              namespace: "{{workflow.parameters.adminModeNamespace}}"
+              generateName: alb-az-down-1ny
+              labels:
+                workflow_run_id: "{{ workflow.uid }}"
+                workflow_name: regiona-failover
+            spec:
+              engineState: active
+              chaosServiceAccount: litmus-admin
+              experiments:
+                - name: alb-az-down
+                  spec:
+                    components:
+                      env:
+                        - name: TOTAL_CHAOS_DURATION
+                          value: "30"
+                        - name: CHAOS_INTERVAL
+                          value: "30"
+                        - name: LOAD_BALANCER_ARN
+                          value: arn:aws:elasticloadbalancing:us-east-1:250399887424:loadbalancer/app/cgc-LoadBalancer/f8a96edfdf6464f8
+                        - name: ZONES
+                          value: us-east-1a
+                        - name: REGION
+                          value: us-east-1
+                        - name: SEQUENCE
+                          value: parallel
+                    probe:
+                      - name: healthcheck
+                        type: cmdProbe
+                        mode: Edge
+                        runProperties:
+                          probeTimeout: 10
+                          retry: 0
+                          interval: 1
+                          stopOnFailure: true
+                        cmdProbe/inputs:
+                          command: ./healthcheck -name aws-alb
+                          source:
+                            image: chaosnative/go-runner:3.0.1-saas
+                            inheritInputs: true
+                          comparator:
+                            type: string
+                            criteria: contains
+                            value: "[P000]"
+    metadata:
+      labels:
+        weight: "10"
+    name: alb-az-down-1ny
+    outputs: {}
+  - container:
+      args:
+      - -file=/tmp/chaosengine-rds-instance-reboot-c2d.yaml
+      - -saveName=/tmp/engine-name
+      image: chaosnative/litmus-checker:2.11.0
+      name: ""
+      resources: {}
+    inputs:
+      artifacts:
+      - name: rds-instance-reboot-c2d
+        path: /tmp/chaosengine-rds-instance-reboot-c2d.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            kind: ChaosEngine
+            metadata:
+              namespace: "{{workflow.parameters.adminModeNamespace}}"
+              generateName: rds-instance-reboot-c2d
+              labels:
+                workflow_run_id: "{{ workflow.uid }}"
+                workflow_name: regiona-failover
+            spec:
+              engineState: active
+              chaosServiceAccount: litmus-admin
+              experiments:
+                - name: rds-instance-reboot
+                  spec:
+                    components:
+                      statusCheckTimeouts:
+                        delay: 2
+                        timeout: 400
+                      env:
+                        - name: TOTAL_CHAOS_DURATION
+                          value: "30"
+                        - name: CHAOS_INTERVAL
+                          value: "10"
+                        - name: CLUSTER_NAME
+                          value: dsd-aurora-hd
+                        - name: RDS_INSTANCE_IDENTIFIER
+                          value: dsd-aurora-hd-instance-1
+                        - name: REGION
+                          value: us-east-1
+                        - name: FAILOVER
+                          value: "false"
+                        - name: INSTANCE_AFFECTED_PERC
+                          value: "100"
+                        - name: SEQUENCE
+                          value: parallel
+                    probe:
+                      - name: pre-healthcheck
+                        type: cmdProbe
+                        mode: SOT
+                        runProperties:
+                          probeTimeout: 10
+                          retry: 0
+                          interval: 1
+                          stopOnFailure: true
+                        cmdProbe/inputs:
+                          command: ./healthcheck -name aws-rds-pre-chaos
+                          source:
+                            image: chaosnative/go-runner:3.0.1-saas
+                            inheritInputs: true
+                          comparator:
+                            type: string
+                            criteria: contains
+                            value: "[P000]"
+                      - name: post-healthcheck
+                        type: cmdProbe
+                        mode: EOT
+                        runProperties:
+                          probeTimeout: 10
+                          retry: 0
+                          interval: 1
+                          stopOnFailure: true
+                        cmdProbe/inputs:
+                          command: ./healthcheck -name aws-rds-post-chaos
+                          source:
+                            image: chaosnative/go-runner:3.0.1-saas
+                            inheritInputs: true
+                          comparator:
+                            type: string
+                            criteria: contains
+                            value: "[P000]"
+    metadata:
+      labels:
+        weight: "10"
+    name: rds-instance-reboot-c2d
+    outputs: {}
+  - container:
+      args:
+      - -file=/tmp/chaosengine-lambda-update-function-memory-p6e.yaml
+      - -saveName=/tmp/engine-name
+      image: chaosnative/litmus-checker:2.11.0
+      name: ""
+      resources: {}
+    inputs:
+      artifacts:
+      - name: lambda-update-function-memory-p6e
+        path: /tmp/chaosengine-lambda-update-function-memory-p6e.yaml
+        raw:
+          data: |
+            apiVersion: litmuschaos.io/v1alpha1
+            kind: ChaosEngine
+            metadata:
+              namespace: "{{workflow.parameters.adminModeNamespace}}"
+              generateName: lambda-update-function-memory-p6e
+              labels:
+                workflow_run_id: "{{ workflow.uid }}"
+                workflow_name: regiona-failover
+            spec:
+              engineState: active
+              chaosServiceAccount: litmus-admin
+              experiments:
+                - name: lambda-update-function-memory
+                  spec:
+                    components:
+                      env:
+                        - name: TOTAL_CHAOS_DURATION
+                          value: "30"
+                        - name: CHAOS_INTERVAL
+                          value: "30"
+                        - name: FUNCTION_NAME
+                          value: cgc-harness-chaos
+                        - name: REGION
+                          value: us-east-1
+                        - name: MEMORY_IN_MEGABYTES
+                          value: "128"
+                    probe:
+                      - name: healthcheck
+                        type: cmdProbe
+                        mode: Edge
+                        runProperties:
+                          probeTimeout: 10
+                          retry: 0
+                          interval: 1
+                          stopOnFailure: true
+                        cmdProbe/inputs:
+                          command: ./healthcheck -name lambda-update-function
+                          source:
+                            image: chaosnative/go-runner:3.0.1-saas
+                            inheritInputs: true
+                          comparator:
+                            type: string
+                            criteria: contains
+                            value: "[P000]"
+    metadata:
+      labels:
+        weight: "10"
+    name: lambda-update-function-memory-p6e
+    outputs: {}
+status:
+  finishedAt: null
+  startedAt: null
